@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Mapbox Routing with Stops</title>
+  <link href="https://api.mapbox.com/mapbox-gl-js/v2.5.1/mapbox-gl.css" rel="stylesheet">
+  <style>
+    #map {
+      height: 600px;
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+  <h1>Mapbox Routing with Stops</h1>
+  <div id="map"></div>
+
+  <script src="https://api.mapbox.com/mapbox-gl-js/v2.5.1/mapbox-gl.js"></script>
+  <script>
+    // Mapbox access token
+    mapboxgl.accessToken = 'pk.eyJ1Ijoic2JpMzEzNzkzIiwiYSI6ImNsazJoMWd0ODBjaWIzc295MXp2ZWhtaTQifQ.msoqUEYvXEh2M-ZO4SUpag';
+
+
+    // Define the origin and destination coordinates
+    const origin = [73.763348, 19.990911]; // Enter origin coordinates [lng, lat]
+    const destination = [73.780867, 19.967028]; // Enter destination coordinates [lng, lat]
+
+
+    // Initialize and display the map
+    function initMap() {
+      const map = new mapboxgl.Map({
+        container: 'map',
+        style: 'mapbox://styles/mapbox/streets-v11',
+        center: origin, // Enter origin coordinates [lng, lat]
+        zoom: 12
+      });
+
+      
+
+      // Define the potential stop coordinates
+      const stops = [
+        [73.770000, 19.992000], // Enter stop 1 coordinates [lng, lat]
+        [73.775000, 19.988000], // Enter stop 2 coordinates [lng, lat]
+        [73.778000, 19.985000]  // Enter stop 3 coordinates [lng, lat]
+      ];
+
+      // Add markers for the origin, destination, and stops
+      new mapboxgl.Marker({ color: 'green' }).setLngLat(origin).addTo(map);
+      new mapboxgl.Marker({ color: 'red' }).setLngLat(destination).addTo(map);
+
+      stops.forEach(stop => {
+        new mapboxgl.Marker().setLngLat(stop).addTo(map);
+      });
+
+      // Fetch the route from Mapbox Directions API with stops and display it on the map
+      fetchRoute(origin, destination, stops, map);
+    }
+
+    // Fetch the route from Mapbox Directions API with stops and display it on the map
+    function fetchRoute(origin, destination, stops, map) {
+      const coordinates = [origin, ...stops, destination].join(';');
+
+      const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${coordinates}?alternatives=true&geometries=geojson&steps=true&access_token=${mapboxgl.accessToken}`;
+
+      fetch(url)
+        .then(response => response.json())
+        .then(data => {
+          const routes = data.routes;
+          const routeCoordinates = routes[0].geometry.coordinates;
+
+          // Create a GeoJSON feature for the route
+          const routeFeature = {
+            type: 'Feature',
+            geometry: {
+              type: 'LineString',
+              coordinates: routeCoordinates
+            }
+          };
+
+          // Add the route to the map
+          map.addSource('route', {
+            type: 'geojson',
+            data: routeFeature
+          });
+
+          map.addLayer({
+            id: 'route',
+            type: 'line',
+            source: 'route',
+            paint: {
+              'line-color': 'blue',
+              'line-opacity': 0.6,
+              'line-width': 6
+            }
+          });
+
+          // Fit the map bounds to display the entire route
+          const bounds = new mapboxgl.LngLatBounds(
+            routeCoordinates[0],
+            routeCoordinates[routeCoordinates.length - 1]
+          );
+
+          map.fitBounds(bounds, {
+            padding: 40
+          });
+        })
+        .catch(error => console.error(error));
+    }
+
+    // Trigger initializing the map
+    window.onload = initMap;
+  </script>
+</body>
+</html>
